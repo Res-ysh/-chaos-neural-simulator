@@ -1,0 +1,2382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chaos & Neural Networks: AI-Powered Physical Simulator</title>
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- KaTeX for rendering equations -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body);"></script>
+    
+    <style>
+/* Design System Tokens */
+:root {
+    --bg-base: #0a0a0f;
+    --bg-surface: rgba(20, 20, 30, 0.6);
+    --bg-surface-hover: rgba(30, 30, 45, 0.8);
+    --border-color: rgba(255, 255, 255, 0.08);
+    --border-color-glow: rgba(0, 242, 254, 0.3);
+    
+    --text-primary: #f3f4f6;
+    --text-secondary: #9ca3af;
+    --text-muted: #6b7280;
+    
+    --neon-blue: #00f2fe;
+    --neon-blue-glow: rgba(0, 242, 254, 0.4);
+    --neon-purple: #9d4edd;
+    --neon-purple-glow: rgba(157, 78, 221, 0.4);
+    --neon-green: #39ff14;
+    --neon-green-glow: rgba(57, 255, 20, 0.4);
+    --neon-red: #ff3366;
+    --neon-red-glow: rgba(255, 51, 102, 0.4);
+    
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    
+    --transition-fast: 0.15s ease;
+    --transition-smooth: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Base Styles */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--bg-base);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+    background-image: 
+        radial-gradient(at 10% 10%, rgba(0, 242, 254, 0.03) 0px, transparent 50%),
+        radial-gradient(at 90% 90%, rgba(157, 78, 221, 0.04) 0px, transparent 50%);
+}
+
+.code-font {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: var(--bg-base);
+}
+::-webkit-scrollbar-thumb {
+    background: #27273a;
+    border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #3e3e5c;
+}
+
+/* Header */
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 2rem;
+    border-bottom: 1px solid var(--border-color);
+    background: rgba(10, 10, 15, 0.8);
+    backdrop-filter: blur(8px);
+    z-index: 10;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.logo h1 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    letter-spacing: -0.5px;
+    background: linear-gradient(90deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.pulse-icon {
+    color: var(--neon-blue);
+    font-size: 1.4rem;
+    animation: iconPulse 3s infinite ease-in-out;
+}
+
+@keyframes iconPulse {
+    0%, 100% { transform: scale(1) rotate(0deg); filter: drop-shadow(0 0 2px var(--neon-blue)); }
+    50% { transform: scale(1.1) rotate(180deg); filter: drop-shadow(0 0 8px var(--neon-blue)); }
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.github-link {
+    color: var(--text-secondary);
+    font-size: 1.5rem;
+    transition: var(--transition-fast);
+}
+
+.github-link:hover {
+    color: var(--text-primary);
+    transform: scale(1.05);
+}
+
+/* Layout Main Container */
+.app-container {
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    flex-grow: 1;
+    gap: 1.5rem;
+    padding: 1.5rem;
+    max-height: calc(100vh - 72px);
+    overflow: hidden;
+}
+
+/* Sidebar Control Panel */
+.control-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+}
+
+/* Glassmorphic Panel Cards */
+.panel-card {
+    background: var(--bg-surface);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.25rem;
+    transition: border-color var(--transition-smooth);
+}
+
+.panel-card:hover {
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.panel-card h2 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.panel-card h2 i {
+    color: var(--neon-blue);
+}
+
+/* System selection buttons */
+.system-toggles {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+.sys-btn {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-secondary);
+    padding: 0.75rem;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-size: 0.85rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    transition: var(--transition-smooth);
+}
+
+.sys-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-primary);
+}
+
+.sys-btn.active {
+    background: rgba(0, 242, 254, 0.08);
+    border-color: var(--neon-blue);
+    color: var(--neon-blue);
+    box-shadow: 0 0 10px rgba(0, 242, 254, 0.1);
+}
+
+/* Param Slider Groups */
+.system-params {
+    display: none;
+}
+
+.system-params.active {
+    display: block;
+}
+
+.control-group {
+    margin-bottom: 1.15rem;
+}
+
+.control-group:last-child {
+    margin-bottom: 0;
+}
+
+.slider-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.825rem;
+    margin-bottom: 0.5rem;
+    color: var(--text-secondary);
+}
+
+.slider-header label {
+    font-weight: 500;
+}
+
+.slider-header span {
+    font-family: var(--font-mono);
+    color: var(--neon-blue);
+}
+
+input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 4px;
+    background: #232332;
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--neon-blue);
+    box-shadow: 0 0 8px var(--neon-blue);
+    transition: var(--transition-fast);
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+}
+
+select {
+    width: 100%;
+    padding: 0.65rem 0.75rem;
+    background: #14141e;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+    outline: none;
+    cursor: pointer;
+    transition: var(--transition-smooth);
+}
+
+select:focus {
+    border-color: var(--neon-blue);
+}
+
+/* AI Status details */
+.nn-status {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.status-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    margin-bottom: 0.5rem;
+    color: var(--text-secondary);
+}
+
+.status-row span:last-child {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.progress-bar-container {
+    width: 100%;
+    height: 4px;
+    background: #181824;
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 0.5rem;
+}
+
+.progress-bar {
+    width: 0%;
+    height: 100%;
+    background: linear-gradient(90deg, var(--neon-blue) 0%, var(--neon-purple) 100%);
+    transition: width var(--transition-fast);
+}
+
+.ai-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+/* Global Button Styles */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.65rem 1.15rem;
+    border-radius: 8px;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    border: none;
+    outline: none;
+}
+
+.btn-block {
+    width: 100%;
+}
+
+.btn-primary {
+    background: var(--neon-blue);
+    color: #000;
+    font-weight: 600;
+    box-shadow: 0 0 15px rgba(0, 242, 254, 0.2);
+}
+
+.btn-primary:hover {
+    background: #00d6e2;
+    box-shadow: 0 0 20px rgba(0, 242, 254, 0.4);
+}
+
+.btn-secondary {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.btn-danger {
+    background: rgba(255, 51, 102, 0.1);
+    color: var(--neon-red);
+    border: 1px solid rgba(255, 51, 102, 0.2);
+}
+
+.btn-danger:hover {
+    background: rgba(255, 51, 102, 0.2);
+}
+
+/* Viewport Section */
+.viewport {
+    display: grid;
+    grid-template-rows: 1fr 220px;
+    gap: 1.5rem;
+    overflow: hidden;
+}
+
+.canvas-container {
+    position: relative;
+    background: #060609;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8);
+}
+
+canvas#physics-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+/* Floating HUD Canvas Overlays */
+.canvas-overlay {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    pointer-events: none;
+}
+
+.overlay-stat {
+    background: rgba(10, 10, 15, 0.75);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--border-color);
+    padding: 0.4rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    display: flex;
+    gap: 0.5rem;
+}
+
+.stat-lbl {
+    color: var(--text-secondary);
+}
+
+.stat-val {
+    font-family: var(--font-mono);
+    font-weight: 600;
+}
+
+.text-neon-blue { color: var(--neon-blue); text-shadow: 0 0 4px var(--neon-blue-glow); }
+.text-neon-red { color: var(--neon-red); text-shadow: 0 0 4px var(--neon-red-glow); }
+.text-neon-green { color: var(--neon-green); text-shadow: 0 0 4px var(--neon-green-glow); }
+
+/* Bottom HUD Simulation Controls */
+.viewport-controls {
+    position: absolute;
+    bottom: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    background: rgba(10, 10, 15, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    padding: 0.5rem;
+    border-radius: 30px;
+    gap: 0.5rem;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+
+.vp-btn {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-secondary);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition-smooth);
+    font-family: var(--font-sans);
+    font-size: 0.95rem;
+}
+
+.vp-btn:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.vp-btn.active {
+    color: var(--neon-blue);
+    background: rgba(0, 242, 254, 0.1);
+}
+
+.vp-btn.disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+/* Button expanding layout */
+.vp-btn span {
+    display: none;
+    margin-left: 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.vp-btn:has(span) {
+    width: auto;
+    border-radius: 18px;
+    padding: 0 1rem;
+}
+
+.vp-btn:has(span):hover span {
+    display: inline;
+}
+
+.vp-divider {
+    width: 1px;
+    height: 20px;
+    background: var(--border-color);
+    margin: 0 0.25rem;
+}
+
+/* Lower charts layout */
+.analytics-panel {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.graph-card {
+    background: var(--bg-surface);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.graph-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    margin-bottom: 0.5rem;
+    min-width: 0;
+}
+
+.graph-header h3 {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    white-space: nowrap;
+}
+
+.graph-header h3 i {
+    color: var(--neon-purple);
+}
+
+.graph-header .code-font {
+    font-size: 0.75rem;
+    color: var(--neon-blue);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.canvas-wrapper {
+    flex-grow: 1;
+    position: relative;
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.02);
+}
+
+.canvas-wrapper canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+/* Modals */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(5, 5, 8, 0.85);
+    backdrop-filter: blur(10px);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal.active {
+    display: flex;
+}
+
+.modal-content {
+    background: #0f0f15;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 30px rgba(0, 242, 254, 0.05);
+    border-radius: 16px;
+    width: 90%;
+    max-width: 960px;
+    max-height: 85vh;
+    overflow: hidden;
+    position: relative;
+    animation: modalAppear 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalAppear {
+    from { transform: scale(0.95) translateY(20px); opacity: 0; }
+    to { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.close-modal {
+    position: absolute;
+    top: 1.25rem;
+    right: 1.5rem;
+    font-size: 1.75rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.close-modal:hover {
+    color: var(--text-primary);
+}
+
+.modal-body {
+    padding: 2.5rem;
+    overflow-y: auto;
+    max-height: 85vh;
+}
+
+.modal-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.modal-title i {
+    color: var(--neon-blue);
+}
+
+.intro-text {
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: 1.5rem;
+}
+
+/* Tabs inside Modal */
+.tab-headers {
+    display: flex;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 1.5rem;
+    gap: 0.5rem;
+    overflow-x: auto;
+}
+
+.tab-btn {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-secondary);
+    padding: 0.75rem 1rem;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-size: 0.9rem;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: var(--transition-smooth);
+    white-space: nowrap;
+}
+
+.tab-btn:hover {
+    color: var(--text-primary);
+}
+
+.tab-btn.active {
+    color: var(--neon-blue);
+    border-bottom-color: var(--neon-blue);
+}
+
+.tab-content {
+    display: none;
+    line-height: 1.6;
+    color: #d1d5db;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.tab-content h3 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.75rem;
+}
+
+.tab-content h4 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-top: 1.25rem;
+    margin-bottom: 0.5rem;
+}
+
+.tab-content p {
+    margin-bottom: 1rem;
+}
+
+.tab-content ul {
+    margin-left: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.tab-content li {
+    margin-bottom: 0.25rem;
+}
+
+.math-box {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    padding: 1rem;
+    border-radius: 8px;
+    margin: 1.25rem 0;
+    overflow-x: auto;
+    font-family: var(--font-mono);
+    text-align: center;
+}
+
+.insight {
+    background: rgba(157, 78, 221, 0.06);
+    border-left: 4px solid var(--neon-purple);
+    padding: 0.75rem 1rem;
+    border-radius: 0 8px 8px 0;
+    margin-top: 1rem;
+}
+
+/* Responsiveness */
+@media (max-width: 1024px) {
+    .app-container {
+        grid-template-columns: 1fr;
+        max-height: none;
+        overflow-y: auto;
+    }
+    
+    .control-panel {
+        max-height: 400px;
+    }
+    
+    .viewport {
+        grid-template-rows: 500px auto;
+        max-height: none;
+    }
+}
+
+</style>
+</head>
+<body>
+    <header class="app-header">
+        <div class="logo">
+            <i class="fa-solid fa-atom pulse-icon"></i>
+            <h1>Chaos &amp; Neural Networks</h1>
+        </div>
+        <div class="header-actions">
+            <button id="btn-theory" class="btn btn-secondary">
+                <i class="fa-solid fa-book-open"></i> Mathematical Foundations
+            </button>
+            <a href="https://github.com" target="_blank" class="github-link" aria-label="GitHub Repository">
+                <i class="fa-brands fa-github"></i>
+            </a>
+        </div>
+    </header>
+
+    <main class="app-container">
+        <!-- Control Panel (Left Side) -->
+        <section class="control-panel">
+            <!-- System Select Card -->
+            <div class="panel-card select-card">
+                <h2><i class="fa-solid fa-gears"></i> Select Physical System</h2>
+                <div class="system-toggles">
+                    <button id="sys-double-pendulum" class="sys-btn active">
+                        <i class="fa-solid fa-bezier-curve"></i>
+                        <span>Double Pendulum</span>
+                    </button>
+                    <button id="sys-lorenz" class="sys-btn">
+                        <i class="fa-solid fa-wind"></i>
+                        <span>Lorenz Attractor</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Parameters Card (Dynamic based on selected system) -->
+            <div class="panel-card params-card">
+                <h2><i class="fa-solid fa-sliders"></i> Physics Parameters</h2>
+                
+                <!-- Double Pendulum Parameters -->
+                <div id="params-double-pendulum" class="system-params active">
+                    <div class="control-group">
+                        <div class="slider-header">
+                            <label for="val-l1">Length 1 (L₁)</label>
+                            <span id="label-l1">150 px</span>
+                        </div>
+                        <input type="range" id="val-l1" min="50" max="250" value="150">
+                    </div>
+                    <div class="control-group">
+                        <div class="slider-header">
+                            <label for="val-l2">Length 2 (L₂)</label>
+                            <span id="label-l2">130 px</span>
+                        </div>
+                        <input type="range" id="val-l2" min="50" max="250" value="130">
+                    </div>
+                    <div class="control-group">
+                        <div class="slider-header">
+                            <label for="val-m1">Mass 1 (m₁)</label>
+                            <span id="label-m1">15 kg</span>
+                        </div>
+                        <input type="range" id="val-m1" min="5" max="50" value="15">
+                    </div>
+                    <div class="control-group">
+                        <div class="slider-header">
+                            <label for="val-m2">Mass 2 (m₂)</label>
+                            <span id="label-m2">15 kg</span>
+                        </div>
+                        <input type="range" id="val-m2" min="5" max="50" value="15">
+                    </div>
+                    <div class="control-group">
+                        <div class="slider-header">
+                            <label for="val-g">Gravity (g)</label>
+                            <span id="label-g">9.8 m/s²</span>
+                        </div>
+                        <input type="range" id="val-g" min="0" max="25" step="0.1" value="9.8">
+                    </div>
+                </div>
+
+                <!-- Lorenz Parameters -->
+                <div id="params-lorenz" class="system-params">
+                    <div class="control-group">
+                        <div class="slider-header">
+                            <label for="val-sigma">Sigma (σ)</label>
+                            <span id="label-sigma">10.0</span>
+                        </div>
+                        <input type="range" id="val-sigma" min="1" max="30" step="0.1" value="10">
+                    </div>
+                    <div class="control-group">
+                        <div class="slider-header">
+                            <label for="val-rho">Rho (ρ)</label>
+                            <span id="label-rho">28.0</span>
+                        </div>
+                        <input type="range" id="val-rho" min="5" max="50" step="0.1" value="28">
+                    </div>
+                    <div class="control-group">
+                        <div class="slider-header">
+                            <label for="val-beta">Beta (β)</label>
+                            <span id="label-beta">2.67</span>
+                        </div>
+                        <input type="range" id="val-beta" min="0.1" max="5" step="0.01" value="2.67">
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <div class="slider-header">
+                        <label for="val-damping">Damping (Friction)</label>
+                        <span id="label-damping">0.001</span>
+                    </div>
+                    <input type="range" id="val-damping" min="0" max="0.05" step="0.0001" value="0.001">
+                </div>
+                <div class="control-group">
+                    <div class="slider-header">
+                        <label for="val-attractor-mass">Attractor Mass (M)</label>
+                        <span id="label-attractor-mass">1000</span>
+                    </div>
+                    <input type="range" id="val-attractor-mass" min="0" max="5000" step="100" value="1000">
+                </div>
+            </div>
+
+            <!-- AI Hyperparameters Card -->
+            <div class="panel-card ai-card">
+                <h2><i class="fa-solid fa-brain"></i> Neural Network (From Scratch)</h2>
+                <div class="control-group">
+                    <div class="slider-header">
+                        <label for="val-lr">Learning Rate (η)</label>
+                        <span id="label-lr">0.005</span>
+                    </div>
+                    <input type="range" id="val-lr" min="0.0005" max="0.05" step="0.0005" value="0.005">
+                </div>
+                <div class="control-group">
+                    <div class="slider-header">
+                        <label for="val-epochs">Epochs / Frame</label>
+                        <span id="label-epochs">5</span>
+                    </div>
+                    <input type="range" id="val-epochs" min="1" max="25" step="1" value="5">
+                </div>
+                <div class="control-group">
+                    <label for="select-hidden">Network Architecture</label>
+                    <select id="select-hidden">
+                        <option value="16">Input (8) → 16 → Output (4)</option>
+                        <option value="32" selected>Input (8) → 32 → Output (4)</option>
+                        <option value="64">Input (8) → 64 → Output (4)</option>
+                        <option value="32,32">Input (8) → 32 → 32 → Output (4)</option>
+                    </select>
+                </div>
+                <div class="nn-status">
+                    <div class="status-row">
+                        <span>Current Training Loss:</span>
+                        <span id="nn-loss-val" class="code-font">0.00000</span>
+                    </div>
+                    <div class="status-row">
+                        <span>Samples Collected:</span>
+                        <span id="nn-samples-val" class="code-font">0</span>
+                    </div>
+                    <div class="progress-bar-container">
+                        <div id="nn-progress" class="progress-bar"></div>
+                    </div>
+                </div>
+                <div class="ai-buttons">
+                    <button id="btn-train-toggle" class="btn btn-primary btn-block">
+                        <i class="fa-solid fa-graduation-cap"></i> Start AI Training
+                    </button>
+                    <button id="btn-clear-data" class="btn btn-danger btn-block">
+                        <i class="fa-solid fa-trash-can"></i> Clear Training Data
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Visualization Canvas (Middle/Right) -->
+        <section class="viewport">
+            <div class="canvas-container">
+                <canvas id="physics-canvas"></canvas>
+                
+                <!-- Display overlay with speed / divergence metrics -->
+                <div class="canvas-overlay">
+                    <div class="overlay-stat">
+                        <span class="stat-lbl">Solver:</span>
+                        <span class="stat-val text-neon-blue">RK4 (60Hz)</span>
+                    </div>
+                    <div class="overlay-stat">
+                        <span class="stat-lbl">Chaotic Divergence:</span>
+                        <span id="stat-divergence" class="stat-val text-neon-red">0.00%</span>
+                    </div>
+                    <div class="overlay-stat">
+                        <span class="stat-lbl">AI Prediction Error:</span>
+                        <span id="stat-ai-error" class="stat-val text-neon-green">N/A</span>
+                    </div>
+                </div>
+
+                <!-- Simulation Controls Overlay -->
+                <div class="viewport-controls">
+                    <button id="btn-play-physics" class="vp-btn" title="Play/Pause Physics">
+                        <i class="fa-solid fa-pause"></i>
+                    </button>
+                    <button id="btn-reset-physics" class="vp-btn" title="Reset Simulation">
+                        <i class="fa-solid fa-arrow-rotate-left"></i>
+                    </button>
+                    <div class="vp-divider"></div>
+                    <button id="btn-toggle-butterfly" class="vp-btn" title="Toggle Butterfly Effect Demonstration (Dual Simulation)">
+                        <i class="fa-solid fa-shuffle"></i> <span>Show Butterfly Effect</span>
+                    </button>
+                    <button id="btn-toggle-ai-path" class="vp-btn disabled" title="Predict Future with Neural Network">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> <span>Activate AI Trajectory</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Lower Analytics Panel -->
+            <div class="analytics-panel">
+                <div class="graph-card">
+                    <div class="graph-header">
+                        <h3><i class="fa-solid fa-chart-line"></i> Loss Trend (Training Progress)</h3>
+                        <span class="code-font" id="trend-loss-value">Loss: —</span>
+                    </div>
+                    <div class="canvas-wrapper">
+                        <canvas id="loss-chart"></canvas>
+                    </div>
+                </div>
+                <div class="graph-card">
+                    <div class="graph-header">
+                        <h3><i class="fa-solid fa-chart-area"></i> Phase Space (θ vs ω)</h3>
+                        <span class="code-font" id="phase-coord-val">—</span>
+                    </div>
+                    <div class="canvas-wrapper">
+                        <canvas id="phase-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal for Mathematical Foundations -->
+    <div id="theory-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" id="btn-close-modal">&times;</span>
+            <div class="modal-body">
+                <h1 class="modal-title"><i class="fa-solid fa-square-root-variable"></i> Scientific &amp; Mathematical Foundations</h1>
+                <p class="intro-text">
+                    This simulator implements raw physical equations integrated using high-accuracy numerical methods, juxtaposed against a custom multi-layer artificial neural network written from first principles.
+                </p>
+
+                <div class="tab-container">
+                    <div class="tab-headers">
+                        <button class="tab-btn active" data-tab="tab-double-pendulum">Double Pendulum Physics</button>
+                        <button class="tab-btn" data-tab="tab-lorenz">Lorenz Attractor</button>
+                        <button class="tab-btn" data-tab="tab-rk4">Runge-Kutta 4th Order</button>
+                        <button class="tab-btn" data-tab="tab-nn">Neural Network from Scratch</button>
+                        <button class="tab-btn" data-tab="tab-attractors">Gravitational Obstacles</button>
+                    </div>
+
+                    <!-- Double Pendulum Tab -->
+                    <div id="tab-double-pendulum" class="tab-content active">
+                        <h3>Lagrangian Formulation of the Double Pendulum</h3>
+                        <p>A simple pendulum has a single degree of freedom. A double pendulum has two, represented by the angles $\theta_1$ and $\theta_2$ of the rods relative to the vertical axis. The position coordinates of the two masses are:</p>
+                        
+                        <div class="math-box">
+                            $$x_1 = L_1 \sin\theta_1, \quad y_1 = -L_1 \cos\theta_1$$
+                            $$x_2 = L_1 \sin\theta_1 + L_2 \sin\theta_2, \quad y_2 = -L_1 \cos\theta_1 - L_2 \cos\theta_2$$
+                        </div>
+
+                        <p>The total Kinetic Energy ($T$) and Potential Energy ($V$) of the system are:</p>
+                        <div class="math-box">
+                            $$T = \frac{1}{2} m_1 v_1^2 + \frac{1}{2} m_2 v_2^2 = \frac{1}{2} m_1 L_1^2 \dot{\theta}_1^2 + \frac{1}{2} m_2 \left[ L_1^2 \dot{\theta}_1^2 + L_2^2 \dot{\theta}_2^2 + 2 L_1 L_2 \dot{\theta}_1 \dot{\theta}_2 \cos(\theta_1 - \theta_2) \right]$$
+                            $$V = -(m_1 + m_2)g L_1 \cos\theta_1 - m_2 g L_2 \cos\theta_2$$
+                        </div>
+
+                        <p>Using the Lagrangian $L = T - V$ and applying the Euler-Lagrange equations $\frac{d}{dt}\left(\frac{\partial L}{\partial \dot{\theta}_i}\right) - \frac{\partial L}{\partial \theta_i} = 0$, we solve for the angular accelerations $\ddot{\theta}_1$ and $\ddot{\theta}_2$:</p>
+                        
+                        <div class="math-box">
+                            $$\ddot{\theta}_1 = \frac{-g(2m_1 + m_2)\sin\theta_1 - m_2 g \sin(\theta_1 - 2\theta_2) - 2\sin(\theta_1 - \theta_2)m_2\left(\dot{\theta}_2^2 L_2 + \dot{\theta}_1^2 L_1 \cos(\theta_1 - \theta_2)\right)}{L_1 \left(2m_1 + m_2 - m_2 \cos(2\theta_1 - 2\theta_2)\right)}$$
+                            $$\ddot{\theta}_2 = \frac{2\sin(\theta_1 - \theta_2)\left(\dot{\theta}_1^2 L_1(m_1 + m_2) + g(m_1 + m_2)\cos\theta_1 + \dot{\theta}_2^2 L_2 m_2 \cos(\theta_1 - \theta_2)\right)}{L_2 \left(2m_1 + m_2 - m_2 \cos(2\theta_1 - 2\theta_2)\right)}$$
+                        </div>
+                        <p class="insight"><strong>Chaos Insight:</strong> The equations are highly coupled and non-linear. The system is extremely sensitive to initial conditions. A change in starting angle of even $0.0001$ radians leads to exponential divergence of the orbits (characterized by a positive Lyapunov exponent).</p>
+                    </div>
+
+                    <!-- Lorenz Attractor Tab -->
+                    <div id="tab-lorenz" class="tab-content">
+                        <h3>The Lorenz Dynamical System</h3>
+                        <p>Developed by meteorologist Edward Lorenz in 1963, the Lorenz system represents a highly simplified model of atmospheric convection. It is a set of three coupled, non-linear ordinary differential equations:</p>
+                        
+                        <div class="math-box">
+                            $$\frac{dx}{dt} = \sigma (y - x)$$
+                            $$\frac{dy}{dt} = x (\rho - z) - y$$
+                            $$\frac{dz}{dt} = xy - \beta z$$
+                        </div>
+
+                        <p>Where parameters describe physical properties:</p>
+                        <ul>
+                            <li>$\sigma$ (Sigma): Prandtl number representing fluid viscosity.</li>
+                            <li>$\rho$ (Rho): Rayleigh number representing heat convection driving force. (At $\rho = 28$, chaos emerges).</li>
+                            <li>$\beta$ (Beta): Geometric dimension ratio of the convection cells.</li>
+                        </ul>
+                        <p class="insight"><strong>Butterfly Effect:</strong> Plotting the trajectories in 3D $(x,y,z)$ reveals a fractal shape known as the <em>Lorenz Attractor</em>. The system cycles infinitely between two wings without ever intersecting its own path, creating a butterfly-wing visual mapping.</p>
+                    </div>
+
+                    <!-- RK4 Tab -->
+                    <div id="tab-rk4" class="tab-content">
+                        <h3>Runge-Kutta 4th Order (RK4) Numerical Integration</h3>
+                        <p>Standard Euler integration ($x_{t+1} = x_t + v_t \cdot dt$) accumulates error quickly ($O(dt)$), causing physical systems to violate conservation of energy and drift rapidly. This simulator uses the **Runge-Kutta 4th Order (RK4)** integration method, which has an error of $O(dt^4)$.</p>
+                        
+                        <p>For any system defined by a differential equation $\frac{d\vec{w}}{dt} = f(t, \vec{w})$, RK4 computes four trial slopes at different increments within the time-step $dt$:</p>
+                        
+                        <div class="math-box">
+                            $$\vec{k}_1 = f\left(t_n, \vec{w}_n\right)$$
+                            $$\vec{k}_2 = f\left(t_n + \frac{dt}{2}, \vec{w}_n + \frac{dt}{2} \vec{k}_1\right)$$
+                            $$\vec{k}_3 = f\left(t_n + \frac{dt}{2}, \vec{w}_n + \frac{dt}{2} \vec{k}_2\right)$$
+                            $$\vec{k}_4 = f\left(t_n + dt, \vec{w}_n + dt \vec{k}_3\right)$$
+                        </div>
+                        
+                        <p>The state is updated using a weighted average of these four slopes, giving higher weight to the midpoint values:</p>
+                        
+                        <div class="math-box">
+                            $$\vec{w}_{n+1} = \vec{w}_n + \frac{dt}{6} \left(\vec{k}_1 + 2\vec{k}_2 + 2\vec{k}_3 + \vec{k}_4\right)$$
+                        </div>
+                    </div>
+
+                    <!-- Neural Network Tab -->
+                    <div id="tab-nn" class="tab-content">
+                        <h3>Deep Learning from Scratch in JavaScript</h3>
+                        <p>The neural network here is implemented from first-principles matrix math. It predicts the future state of a chaotic system $\vec{s}_{t+1}$ based on current state parameters $\vec{s}_t = [q_1, q_2, p_1, p_2]$.</p>
+
+                        <h4>1. Feed-Forward Process</h4>
+                        <p>For any layer $l$, the pre-activation vector $z^{[l]}$ and activation vector $a^{[l]}$ are calculated as:</p>
+                        <div class="math-box">
+                            $$z^{[l]} = W^{[l]} a^{[l-1]} + b^{[l]}$$
+                            $$a^{[l]} = g(z^{[l]})$$
+                        </div>
+                        <p>Where $W^{[l]}$ is the weight matrix, $b^{[l]}$ is the bias vector, and $g(x)$ is the activation function. We implement both the hyperbolic tangent ($\tanh$) and ReLU activations:</p>
+                        <div class="math-box">
+                            $$\tanh(x) = \frac{e^x - e^{-x}}{e^x + e^{-x}}, \quad \text{ReLU}(x) = \max(0, x)$$
+                        </div>
+
+                        <h4>2. Loss Evaluation</h4>
+                        <p>To measure prediction accuracy, we compute the Mean Squared Error (MSE) loss across a batch of $N$ target states:</p>
+                        <div class="math-box">
+                            $$\mathcal{L} = \frac{1}{2N} \sum_{i=1}^N \|\hat{y}^{(i)} - y^{(i)}\|^2$$
+                        </div>
+
+                        <h4>3. Backpropagation (The Chain Rule)</h4>
+                        <p>To optimize the weights, we calculate the gradients of the loss function with respect to weights and biases by backpropagating the error using the calculus chain rule:</p>
+                        <div class="math-box">
+                            $$\delta^{[L]} = \frac{\partial \mathcal{L}}{\partial z^{[L]}} = (\hat{y} - y) \odot g'(z^{[L]})$$
+                            $$\delta^{[l]} = \left( (W^{[l+1]})^T \delta^{[l+1]} \right) \odot g'(z^{[l]})$$
+                        </div>
+                        <p>The gradients are used to update the weights and biases using gradient descent with learning rate $\eta$:</p>
+                        <div class="math-box">
+                            $$W^{[l]} \leftarrow W^{[l]} - \eta \frac{\partial \mathcal{L}}{\partial W^{[l]}}, \quad \text{where } \frac{\partial \mathcal{L}}{\partial W^{[l]}} = \delta^{[l]} (a^{[l-1]})^T$$
+                            $$b^{[l]} \leftarrow b^{[l]} - \eta \delta^{[l]}$$
+                        </div>
+                    </div>
+                    <!-- Gravitational Obstacles Tab -->
+                    <div id="tab-attractors" class="tab-content">
+                        <h3>Gravitational Obstacles: External Force Fields</h3>
+                        <p>Clicking on the simulation canvas places a <strong>gravitational attractor</strong> — a massive body that exerts a gravitational pull on both pendulum bobs, modifying their trajectories in real time. Drag to reposition; right-click to remove.</p>
+
+                        <h4>Force Vector on Each Bob</h4>
+                        <p>For an attractor at position $\mathbf{P}$ with lumped strength $G \cdot M$, the gravitational force on bob $i$ at position $\mathbf{r}_i$ is:</p>
+                        <div class="math-box">
+                            $$\mathbf{F}_i = \frac{G \cdot M \cdot m_i}{|\mathbf{r}_i - \mathbf{P}|^2} \hat{r}_i, \quad \hat{r}_i = \frac{\mathbf{P} - \mathbf{r}_i}{|\mathbf{P} - \mathbf{r}_i|}$$
+                        </div>
+
+                        <h4>Generalised Torques via Virtual Work</h4>
+                        <p>Because the pendulum is constrained, we cannot apply $\mathbf{F}_i$ directly to the joint angles. Instead, the <em>principle of virtual work</em> converts the Cartesian force into a <em>generalised torque</em> on joint $j$:</p>
+                        <div class="math-box">
+                            $$\tau_j^{(i)} = \mathbf{F}_i \cdot \frac{\partial \mathbf{r}_i}{\partial \theta_j}$$
+                        </div>
+                        <p>The partial derivatives of the bob positions with respect to the generalised coordinates are:</p>
+                        <div class="math-box">
+                            $$\frac{\partial \mathbf{r}_1}{\partial \theta_1} = \begin{pmatrix} L_1 \cos\theta_1 \\ -L_1 \sin\theta_1 \end{pmatrix}, \quad \frac{\partial \mathbf{r}_2}{\partial \theta_2} = \begin{pmatrix} L_2 \cos\theta_2 \\ -L_2 \sin\theta_2 \end{pmatrix}$$
+                        </div>
+                        <p>These torques $\tau_1, \tau_2$ are added directly into the Lagrangian angular acceleration numerators, coupling the external field seamlessly into the existing RK4 integration.</p>
+
+                        <h4>AI Awareness of the Environment</h4>
+                        <p>The neural network input dimension has been extended from 6 to 8 features. The two additional features encode the attractor position normalised to $[-1, 1]$:</p>
+                        <div class="math-box">
+                            $$\vec{s}_t = [\sin\theta_1,\, \sin\theta_2,\, \cos\theta_1,\, \cos\theta_2,\, \hat{\omega}_1,\, \hat{\omega}_2,\, \tilde{x}_{\text{att}},\, \tilde{y}_{\text{att}}]$$
+                        </div>
+                        <p class="insight"><strong>Physics Insight:</strong> Moving the attractor after training invalidates the learned dynamics. The loss spikes and re-decreases as the network adapts to the new force field, demonstrating online learning in a non-stationary environment.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+/**
+ * physics.js
+ * Implements Double Pendulum (Lagrangian + attractor torques) and Lorenz Attractor.
+ * All integration via RK4. Gravitational obstacles exert forces on pendulum bobs,
+ * translated into generalised torques τ₁, τ₂ via the principle of virtual work.
+ */
+
+// ─── Double Pendulum ─────────────────────────────────────────────────────────
+
+class DoublePendulum {
+    /**
+     * @param {number} L1  - length of arm 1 (pixels / simulation units)
+     * @param {number} L2  - length of arm 2
+     * @param {number} m1  - mass of bob 1
+     * @param {number} m2  - mass of bob 2
+     * @param {number} g   - gravitational acceleration
+     * @param {number} damping - angular damping coefficient
+     * @param {number} theta1 - initial angle 1 (radians)
+     * @param {number} theta2 - initial angle 2 (radians)
+     * @param {number} omega1 - initial angular velocity 1
+     * @param {number} omega2 - initial angular velocity 2
+     * @param {Array}  attractors - array of {x, y, mass} objects (canvas coords, pivot at origin)
+     */
+    constructor(L1, L2, m1, m2, g, damping,
+                theta1 = Math.PI / 2, theta2 = Math.PI / 2 + 0.01,
+                omega1 = 0, omega2 = 0,
+                attractors = []) {
+        this.L1 = L1;
+        this.L2 = L2;
+        this.m1 = m1;
+        this.m2 = m2;
+        this.g  = g;
+        this.damping = damping;
+        this.attractors = attractors; // [{x, y, mass}, ...]
+
+        // State vector: [θ1, θ2, ω1, ω2]
+        this.state = [theta1, theta2, omega1, omega2];
+
+        // Trail for rendering
+        this.trail = [];
+        this.maxTrail = 400;
+    }
+
+    /** Cartesian position of Bob 1 (relative to pivot at origin) */
+    bob1Pos() {
+        return {
+            x:  this.L1 * Math.sin(this.state[0]),
+            y:  this.L1 * Math.cos(this.state[0])   // +y is down in screen-space
+        };
+    }
+
+    /** Cartesian position of Bob 2 (relative to pivot at origin) */
+    bob2Pos() {
+        return {
+            x:  this.L1 * Math.sin(this.state[0]) + this.L2 * Math.sin(this.state[1]),
+            y:  this.L1 * Math.cos(this.state[0]) + this.L2 * Math.cos(this.state[1])
+        };
+    }
+
+    /**
+     * Compute gravitational torques exerted on each joint by all attractors.
+     *
+     * For each attractor P = (px, py) with mass M, the gravitational force on
+     * bob i at position r_i is:
+     *     F_i = G·M·m_i / |r_i - P|² · r̂_i
+     * where r̂_i = (P - r_i) / |P - r_i|  (points toward attractor).
+     *
+     * Virtual-work principle gives the generalised torque on joint j:
+     *     τ_j^{(i)} = F_i · (∂r_i / ∂θ_j)
+     *
+     * Partial derivatives of bob positions:
+     *   ∂r₁/∂θ₁ = ( L1·cosθ1, -L1·sinθ1 )   (in +x right, +y down convention)
+     *   ∂r₁/∂θ₂ = (0, 0)
+     *   ∂r₂/∂θ₁ = ( L1·cosθ1, -L1·sinθ1 )
+     *   ∂r₂/∂θ₂ = ( L2·cosθ2, -L2·sinθ2 )
+     *
+     * Note: We use G = 1 (dimensionless); "mass" of attractor acts as G·M lumped.
+     */
+    _attractorTorques(theta1, theta2) {
+        let tau1 = 0, tau2 = 0;
+
+        // Bob 1 position
+        const b1x =  this.L1 * Math.sin(theta1);
+        const b1y =  this.L1 * Math.cos(theta1);
+
+        // Bob 2 position
+        const b2x = b1x + this.L2 * Math.sin(theta2);
+        const b2y = b1y + this.L2 * Math.cos(theta2);
+
+        // Partial derivatives (screen-space, +y down)
+        const dr1_dth1 = { x:  this.L1 * Math.cos(theta1), y: -this.L1 * Math.sin(theta1) };
+        const dr2_dth1 = { x:  this.L1 * Math.cos(theta1), y: -this.L1 * Math.sin(theta1) };
+        const dr2_dth2 = { x:  this.L2 * Math.cos(theta2), y: -this.L2 * Math.sin(theta2) };
+
+        for (const att of this.attractors) {
+            // Force on bob 1
+            const dx1 = att.x - b1x;
+            const dy1 = att.y - b1y;
+            const dist1sq = dx1 * dx1 + dy1 * dy1 + 1e-4; // softening to avoid singularity
+            const dist1   = Math.sqrt(dist1sq);
+            const strength1 = att.mass * this.m1 / dist1sq;
+            const F1x = strength1 * (dx1 / dist1);
+            const F1y = strength1 * (dy1 / dist1);
+
+            // Force on bob 2
+            const dx2 = att.x - b2x;
+            const dy2 = att.y - b2y;
+            const dist2sq = dx2 * dx2 + dy2 * dy2 + 1e-4;
+            const dist2   = Math.sqrt(dist2sq);
+            const strength2 = att.mass * this.m2 / dist2sq;
+            const F2x = strength2 * (dx2 / dist2);
+            const F2y = strength2 * (dy2 / dist2);
+
+            // Generalised torques via virtual work
+            tau1 += F1x * dr1_dth1.x + F1y * dr1_dth1.y;
+            tau1 += F2x * dr2_dth1.x + F2y * dr2_dth1.y;
+            tau2 += F2x * dr2_dth2.x + F2y * dr2_dth2.y;
+        }
+
+        return { tau1, tau2 };
+    }
+
+    /**
+     * Compute derivatives of the state vector.
+     * Returns [dθ1/dt, dθ2/dt, dω1/dt, dω2/dt].
+     *
+     * Standard Lagrangian acceleration equations (closed form) with added
+     * attractor torques injected into the numerators.
+     */
+    derivatives(state) {
+        const [theta1, theta2, omega1, omega2] = state;
+        const { L1, L2, m1, m2, g, damping } = this;
+
+        const delta = theta1 - theta2;
+        const sinDelta = Math.sin(delta);
+        const cosDelta = Math.cos(delta);
+        const denom = L1 * (2 * m1 + m2 - m2 * Math.cos(2 * delta));
+
+        // Pure Lagrangian numerator terms
+        const num1_grav = -(2 * m1 + m2) * g * Math.sin(theta1)
+                          - m2 * g * Math.sin(theta1 - 2 * theta2)
+                          - 2 * sinDelta * m2 * (omega2 * omega2 * L2 + omega1 * omega1 * L1 * cosDelta);
+
+        const num2_grav = 2 * sinDelta * (
+                          omega1 * omega1 * L1 * (m1 + m2)
+                          + g * (m1 + m2) * Math.cos(theta1)
+                          + omega2 * omega2 * L2 * m2 * cosDelta
+                        );
+
+        // External attractor torques
+        const { tau1, tau2 } = this._attractorTorques(theta1, theta2);
+
+        // α = angular acceleration
+        let alpha1 = (num1_grav + tau1) / denom - damping * omega1;
+        let alpha2 = (num2_grav + 2 * tau2) / (L2 * (2 * m1 + m2 - m2 * Math.cos(2 * delta))) - damping * omega2;
+
+        return [omega1, omega2, alpha1, alpha2];
+    }
+
+    /** RK4 integration step */
+    step(dt) {
+        const s = this.state;
+        const k1 = this.derivatives(s);
+        const k2 = this.derivatives(s.map((v, i) => v + 0.5 * dt * k1[i]));
+        const k3 = this.derivatives(s.map((v, i) => v + 0.5 * dt * k2[i]));
+        const k4 = this.derivatives(s.map((v, i) => v + dt * k3[i]));
+
+        this.state = s.map((v, i) =>
+            v + (dt / 6) * (k1[i] + 2 * k2[i] + 2 * k3[i] + k4[i])
+        );
+
+        // Record bob2 trail
+        const b2 = this.bob2Pos();
+        this.trail.push({ x: b2.x, y: b2.y });
+        if (this.trail.length > this.maxTrail) this.trail.shift();
+    }
+
+    reset(theta1 = Math.PI / 2, theta2 = Math.PI / 2 + 0.01) {
+        this.state = [theta1, theta2, 0, 0];
+        this.trail = [];
+    }
+}
+
+
+// ─── Lorenz Attractor ─────────────────────────────────────────────────────────
+
+class LorenzSystem {
+    constructor(sigma = 10, rho = 28, beta = 8 / 3) {
+        this.sigma = sigma;
+        this.rho   = rho;
+        this.beta  = beta;
+        this.state = [0.1, 0, 0];
+        this.trail = [];
+        this.maxTrail = 3000;
+    }
+
+    derivatives(state) {
+        const [x, y, z] = state;
+        return [
+            this.sigma * (y - x),
+            x * (this.rho - z) - y,
+            x * y - this.beta * z
+        ];
+    }
+
+    step(dt) {
+        const s = this.state;
+        const k1 = this.derivatives(s);
+        const k2 = this.derivatives(s.map((v, i) => v + 0.5 * dt * k1[i]));
+        const k3 = this.derivatives(s.map((v, i) => v + 0.5 * dt * k2[i]));
+        const k4 = this.derivatives(s.map((v, i) => v + dt * k3[i]));
+
+        this.state = s.map((v, i) =>
+            v + (dt / 6) * (k1[i] + 2 * k2[i] + 2 * k3[i] + k4[i])
+        );
+
+        this.trail.push([...this.state]);
+        if (this.trail.length > this.maxTrail) this.trail.shift();
+    }
+
+    reset() {
+        this.state = [0.1, 0, 0];
+        this.trail = [];
+    }
+}
+
+</script>
+    <script>
+/**
+ * nn.js
+ * Minimal multi-layer neural network implemented from first principles.
+ *
+ * Input dimension: 8
+ *   [θ1, θ2, ω1, ω2, sin(θ1), sin(θ2), norm_att_x, norm_att_y]
+ *   Where norm_att_x/y are the attractor coordinates normalised to [-1, 1]
+ *   relative to the canvas. If no attractor is placed, these are 0.
+ *
+ * Output dimension: 4
+ *   [θ1_next, θ2_next, ω1_next, ω2_next]
+ *
+ * Architecture: configurable hidden layers, tanh activations, linear output.
+ * Trained online with mini-batch gradient descent + MSE loss.
+ */
+
+class NeuralNetwork {
+    /**
+     * @param {number[]} layerSizes - e.g. [8, 32, 4] or [8, 32, 32, 4]
+     */
+    constructor(layerSizes) {
+        this.layerSizes = layerSizes;
+        this.weights = [];
+        this.biases  = [];
+        this._initWeights();
+    }
+
+    /** Xavier/Glorot initialisation */
+    _initWeights() {
+        this.weights = [];
+        this.biases  = [];
+        for (let l = 1; l < this.layerSizes.length; l++) {
+            const inSize  = this.layerSizes[l - 1];
+            const outSize = this.layerSizes[l];
+            const scale   = Math.sqrt(2 / (inSize + outSize));
+
+            const W = [];
+            for (let r = 0; r < outSize; r++) {
+                const row = [];
+                for (let c = 0; c < inSize; c++) {
+                    row.push((Math.random() * 2 - 1) * scale);
+                }
+                W.push(row);
+            }
+            this.weights.push(W);
+            this.biases.push(new Array(outSize).fill(0));
+        }
+    }
+
+    // ── Activation functions ──────────────────────────────────────────────────
+
+    _tanh(x)    { return Math.tanh(x); }
+    _tanhGrad(x){ const t = Math.tanh(x); return 1 - t * t; }
+
+    // ── Matrix-vector ops ─────────────────────────────────────────────────────
+
+    /** W (outSize×inSize) · v (inSize) + b (outSize) → (outSize) */
+    _matVecAdd(W, v, b) {
+        return W.map((row, i) => row.reduce((s, w, j) => s + w * v[j], b[i]));
+    }
+
+    // ── Forward pass ──────────────────────────────────────────────────────────
+
+    /**
+     * Returns { output, cache } where cache stores z (pre-act) and a (post-act)
+     * for each layer — needed for backprop.
+     */
+    forward(input) {
+        const cache = [];
+        let a = input.slice();
+        cache.push({ z: null, a });
+
+        for (let l = 0; l < this.weights.length; l++) {
+            const z    = this._matVecAdd(this.weights[l], a, this.biases[l]);
+            const isLast = l === this.weights.length - 1;
+            a = isLast ? z.slice() : z.map(v => this._tanh(v));
+            cache.push({ z, a });
+        }
+        return { output: a, cache };
+    }
+
+    /** Convenience forward-only (inference) */
+    predict(input) {
+        return this.forward(input).output;
+    }
+
+    // ── Backpropagation ───────────────────────────────────────────────────────
+
+    /**
+     * Single-sample SGD step.
+     * @param {number[]} input   - input features
+     * @param {number[]} target  - target output
+     * @param {number}   lr      - learning rate
+     * @returns {number} MSE loss
+     */
+    trainSample(input, target, lr) {
+        const { output, cache } = this.forward(input);
+        const numLayers = this.weights.length;
+
+        // MSE loss
+        const loss = output.reduce((s, o, i) => s + (o - target[i]) ** 2, 0) / output.length;
+
+        // Output layer delta: dL/dz = (ŷ - y) (linear output, grad=1)
+        let delta = output.map((o, i) => (o - target[i]) / output.length);
+
+        // Backpropagate
+        for (let l = numLayers - 1; l >= 0; l--) {
+            const aPrev = cache[l].a;
+            const W     = this.weights[l];
+            const outSize = this.weights[l].length;
+            const inSize  = aPrev.length;
+
+            // Weight & bias gradients
+            for (let r = 0; r < outSize; r++) {
+                for (let c = 0; c < inSize; c++) {
+                    this.weights[l][r][c] -= lr * delta[r] * aPrev[c];
+                }
+                this.biases[l][r] -= lr * delta[r];
+            }
+
+            // Propagate delta backward (skip for l==0, no layer before input)
+            if (l > 0) {
+                const zPrev = cache[l].z; // pre-activation of CURRENT layer... 
+                // Actually we need z of prev layer:
+                const zPrevLayer = cache[l].z;    // unused here — grad flows through tanh of cache[l-1]
+                const aPrevZ     = cache[l - 1 + 1]?.z; // z of layer l (used for tanh grad)
+                // delta_prev[j] = Σ_r W[r][j] * delta[r] * tanh'(z_prev[j])
+                const deltaPrev = new Array(inSize).fill(0);
+                for (let r = 0; r < outSize; r++) {
+                    for (let c = 0; c < inSize; c++) {
+                        deltaPrev[c] += W[r][c] * delta[r];
+                    }
+                }
+                // Apply tanh gradient at previous layer's z
+                const zL = cache[l].z; // z for current layer output — we need z of prev layer activation
+                const prevZ = cache[l - 1 + 1]?.z;
+                // cache[l] is layer l's output; we need tanh' at z of layer (l-1) output pre-activation
+                // cache index: cache[0]=input(no z), cache[1]=layer0 output, cache[l]=layer(l-1) output
+                // So activation of prev layer was tanh(cache[l].z) ... wait let's re-check indexing.
+                // cache[l+1].z is what we applied tanh to produce cache[l+1].a
+                // We want tanh'(cache[l].z) for delta before layer l
+                const prevLayerZ = cache[l].z;
+                const isFirstHidden = (l === 0);
+                if (!isFirstHidden) {
+                    delta = deltaPrev.map((d, j) => d * this._tanhGrad(prevLayerZ[j]));
+                } else {
+                    delta = deltaPrev;
+                }
+            }
+        }
+
+        return loss;
+    }
+
+    /**
+     * Train on a mini-batch.
+     * @param {Array<{input, target}>} batch
+     * @param {number} lr
+     * @returns {number} average loss
+     */
+    trainBatch(batch, lr) {
+        let totalLoss = 0;
+        for (const { input, target } of batch) {
+            totalLoss += this.trainSample(input, target, lr);
+        }
+        return totalLoss / batch.length;
+    }
+}
+
+// ── Feature engineering ───────────────────────────────────────────────────────
+
+/**
+ * Build the 8-dimensional input feature vector for the neural network.
+ *
+ * @param {number[]} state    - [θ1, θ2, ω1, ω2]
+ * @param {object|null} attractor - { x, y } in pivot-relative coords, or null
+ * @param {number} canvasHalfW - used for normalisation
+ * @param {number} canvasHalfH
+ */
+function buildNNInput(state, attractor, canvasHalfW, canvasHalfH) {
+    const [theta1, theta2, omega1, omega2] = state;
+
+    // Normalise angular velocities to a rough [-1,1] range (cap at ±20 rad/s)
+    const omegaScale = 20;
+    const norm_w1 = Math.max(-1, Math.min(1, omega1 / omegaScale));
+    const norm_w2 = Math.max(-1, Math.min(1, omega2 / omegaScale));
+
+    // Normalise angles (already bounded by physics, but wrap to [-1,1])
+    const norm_t1 = Math.sin(theta1); // periodic features
+    const norm_t2 = Math.sin(theta2);
+    const cos_t1  = Math.cos(theta1);
+    const cos_t2  = Math.cos(theta2);
+
+    // Attractor position (normalised to [-1,1])
+    let att_x = 0, att_y = 0;
+    if (attractor) {
+        att_x = Math.max(-1, Math.min(1, attractor.x / canvasHalfW));
+        att_y = Math.max(-1, Math.min(1, attractor.y / canvasHalfH));
+    }
+
+    return [norm_t1, norm_t2, cos_t1, cos_t2, norm_w1, norm_w2, att_x, att_y];
+}
+
+</script>
+    <script>
+/**
+ * app.js
+ * Main application controller.
+ * Handles:
+ *  - Canvas rendering (double pendulum, Lorenz, trails, glowing planets)
+ *  - Gravitational attractor placement & dragging (mouse + touch)
+ *  - Butterfly-effect dual simulation
+ *  - Neural network training loop & AI trajectory preview
+ *  - Analytics charts (loss trend, phase space)
+ */
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const PHYSICS_DT   = 1 / 120;  // physics substep (2 substeps per 60Hz frame)
+const SUBSTEPS     = 2;
+const MAX_SAMPLES  = 2000;
+const BATCH_SIZE   = 32;
+const AI_PRED_STEPS = 60;       // how many steps the AI trajectory previews
+
+// ─── State ────────────────────────────────────────────────────────────────────
+
+let activeSystem = 'double-pendulum';
+
+// Physics objects
+let pendulum, pendulumB;       // pendulumB is the "butterfly" clone
+let lorenz;
+let attractors = [];           // array of { x, y, mass }  (pivot-relative coords)
+
+// Neural network
+let nn = null;
+let trainingData = [];         // [{input, target}, ...]
+let isTraining   = false;
+let lastLoss     = 0;
+let lossHistory  = [];
+
+// Simulation flags
+let isPlaying       = true;
+let showButterfly   = false;
+let showAIPath      = false;
+
+// Canvas elements
+let physCanvas, physCtx;
+let lossCanvas, lossCtx;
+let phaseCanvas, phaseCtx;
+let pivotX, pivotY;            // canvas-space pivot of pendulum
+
+// Attractor interaction
+let draggingAttractor = null;
+let pendingAttractorMass = 1000;
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function getParams() {
+    return {
+        L1:      parseFloat(document.getElementById('val-l1').value),
+        L2:      parseFloat(document.getElementById('val-l2').value),
+        m1:      parseFloat(document.getElementById('val-m1').value),
+        m2:      parseFloat(document.getElementById('val-m2').value),
+        g:       parseFloat(document.getElementById('val-g').value),
+        damping: parseFloat(document.getElementById('val-damping').value),
+        sigma:   parseFloat(document.getElementById('val-sigma').value),
+        rho:     parseFloat(document.getElementById('val-rho').value),
+        beta:    parseFloat(document.getElementById('val-beta').value),
+        lr:      parseFloat(document.getElementById('val-lr').value),
+        epochs:  parseInt(document.getElementById('val-epochs').value),
+        hidden:  document.getElementById('select-hidden').value,
+    };
+}
+
+function makeNN(hiddenStr) {
+    const hidden = hiddenStr.split(',').map(Number);
+    return new NeuralNetwork([8, ...hidden, 4]);
+}
+
+function makePendulum(params, theta2Offset = 0) {
+    const p = new DoublePendulum(
+        params.L1, params.L2, params.m1, params.m2, params.g, params.damping,
+        Math.PI / 2, Math.PI / 2 + 0.01 + theta2Offset,
+        0, 0,
+        attractors
+    );
+    return p;
+}
+
+function syncAttractors() {
+    if (pendulum) pendulum.attractors = attractors;
+    if (pendulumB) pendulumB.attractors = attractors;
+}
+
+// ─── Canvas setup ─────────────────────────────────────────────────────────────
+
+function resizeCanvases() {
+    const container = physCanvas.parentElement;
+    physCanvas.width  = container.clientWidth;
+    physCanvas.height = container.clientHeight;
+    pivotX = physCanvas.width  / 2;
+    pivotY = physCanvas.height * 0.35;
+
+    lossCanvas.width  = lossCanvas.parentElement.clientWidth;
+    lossCanvas.height = lossCanvas.parentElement.clientHeight;
+    phaseCanvas.width  = phaseCanvas.parentElement.clientWidth;
+    phaseCanvas.height = phaseCanvas.parentElement.clientHeight;
+}
+
+// ─── Drawing helpers ──────────────────────────────────────────────────────────
+
+function hexToRgb(hex) {
+    const r = parseInt(hex.slice(1,3),16);
+    const g = parseInt(hex.slice(3,5),16);
+    const b = parseInt(hex.slice(5,7),16);
+    return `${r},${g},${b}`;
+}
+
+// Draw a glowing circle
+function drawGlow(ctx, x, y, r, color, alpha = 0.9) {
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, r * 3);
+    grad.addColorStop(0,   `rgba(${color},${alpha})`);
+    grad.addColorStop(0.4, `rgba(${color},${alpha * 0.4})`);
+    grad.addColorStop(1,   `rgba(${color},0)`);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(x, y, r * 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = `rgba(${color},1)`;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+}
+
+// ─── Gravitational attractor rendering ───────────────────────────────────────
+
+function drawAttractors(t) {
+    for (const att of attractors) {
+        const sx = pivotX + att.x;
+        const sy = pivotY + att.y;
+        const pulse = 0.75 + 0.25 * Math.sin(t * 0.003 + att._phase);
+        const radius = 6 + (att.mass / 5000) * 14;
+
+        // Gravitational field lines (concentric rings)
+        for (let ring = 1; ring <= 3; ring++) {
+            const rr = radius * (ring * 2.5) * pulse;
+            physCtx.strokeStyle = `rgba(157,78,221,${0.15 / ring})`;
+            physCtx.lineWidth   = 1;
+            physCtx.beginPath();
+            physCtx.arc(sx, sy, rr, 0, Math.PI * 2);
+            physCtx.stroke();
+        }
+
+        // Glowing core
+        drawGlow(physCtx, sx, sy, radius * pulse, '157,78,221', 0.9);
+
+        // White hot centre
+        physCtx.fillStyle = 'rgba(255,255,255,0.9)';
+        physCtx.beginPath();
+        physCtx.arc(sx, sy, radius * 0.35 * pulse, 0, Math.PI * 2);
+        physCtx.fill();
+
+        // Label
+        physCtx.fillStyle = 'rgba(200,180,255,0.7)';
+        physCtx.font = '10px JetBrains Mono, monospace';
+        physCtx.fillText(`M=${att.mass}`, sx + radius + 6, sy - 4);
+    }
+}
+
+// ─── Double Pendulum rendering ────────────────────────────────────────────────
+
+function drawPendulum(pend, color, alpha = 1) {
+    const b1 = pend.bob1Pos();
+    const b2 = pend.bob2Pos();
+    const b1x = pivotX + b1.x, b1y = pivotY + b1.y;
+    const b2x = pivotX + b2.x, b2y = pivotY + b2.y;
+
+    // Trail
+    if (pend.trail.length > 2) {
+        physCtx.save();
+        physCtx.globalAlpha = alpha * 0.6;
+        for (let i = 1; i < pend.trail.length; i++) {
+            const t0 = pend.trail[i - 1];
+            const t1 = pend.trail[i];
+            const fade = i / pend.trail.length;
+            physCtx.strokeStyle = color;
+            physCtx.lineWidth   = 1.5 * fade;
+            physCtx.globalAlpha = alpha * fade * 0.7;
+            physCtx.beginPath();
+            physCtx.moveTo(pivotX + t0.x, pivotY + t0.y);
+            physCtx.lineTo(pivotX + t1.x, pivotY + t1.y);
+            physCtx.stroke();
+        }
+        physCtx.restore();
+    }
+
+    // Arms
+    physCtx.save();
+    physCtx.globalAlpha = alpha;
+    physCtx.strokeStyle = 'rgba(200,200,220,0.7)';
+    physCtx.lineWidth   = 2;
+    physCtx.beginPath();
+    physCtx.moveTo(pivotX, pivotY);
+    physCtx.lineTo(b1x, b1y);
+    physCtx.lineTo(b2x, b2y);
+    physCtx.stroke();
+
+    // Bob 1
+    const rgb1 = '0,242,254';
+    drawGlow(physCtx, b1x, b1y, 8, rgb1, alpha);
+
+    // Bob 2
+    const params = getParams();
+    const speed  = Math.sqrt(pendulum.state[2]**2 + pendulum.state[3]**2);
+    const t      = Math.min(speed / 15, 1);
+    const r2     = Math.round(255 * t);
+    const b2rgb  = `${r2},${Math.round(255*(1-t))},${Math.round(100+155*(1-t))}`;
+    drawGlow(physCtx, b2x, b2y, 10, b2rgb, alpha);
+
+    // Pivot dot
+    physCtx.fillStyle = '#fff';
+    physCtx.beginPath();
+    physCtx.arc(pivotX, pivotY, 4, 0, Math.PI * 2);
+    physCtx.fill();
+
+    physCtx.restore();
+}
+
+// ─── AI Trajectory preview ────────────────────────────────────────────────────
+
+function drawAITrajectory() {
+    if (!nn || !isTraining && trainingData.length < 50) return;
+
+    const params    = getParams();
+    const halfW     = physCanvas.width  / 2;
+    const halfH     = physCanvas.height / 2;
+    const att       = attractors[0] || null;
+
+    let simState = [...pendulum.state];
+    const aiTrail = [];
+
+    for (let step = 0; step < AI_PRED_STEPS; step++) {
+        const input  = buildNNInput(simState, att, halfW, halfH);
+        const output = nn.predict(input);
+        simState     = output;
+        const b2x    =  params.L1 * Math.sin(simState[0]) + params.L2 * Math.sin(simState[1]);
+        const b2y    =  params.L1 * Math.cos(simState[0]) + params.L2 * Math.cos(simState[1]);
+        aiTrail.push({ x: b2x, y: b2y });
+    }
+
+    physCtx.save();
+    for (let i = 0; i < aiTrail.length; i++) {
+        const fade = (i + 1) / aiTrail.length;
+        physCtx.strokeStyle = `rgba(57,255,20,${fade * 0.8})`;
+        physCtx.lineWidth   = 2;
+        physCtx.setLineDash([3, 4]);
+        if (i > 0) {
+            physCtx.beginPath();
+            physCtx.moveTo(pivotX + aiTrail[i-1].x, pivotY + aiTrail[i-1].y);
+            physCtx.lineTo(pivotX + aiTrail[i].x,   pivotY + aiTrail[i].y);
+            physCtx.stroke();
+        }
+    }
+    physCtx.setLineDash([]);
+    physCtx.restore();
+
+    // AI dot at predicted final position
+    if (aiTrail.length > 0) {
+        const last = aiTrail[aiTrail.length - 1];
+        drawGlow(physCtx, pivotX + last.x, pivotY + last.y, 5, '57,255,20', 0.7);
+    }
+}
+
+// ─── Lorenz rendering ─────────────────────────────────────────────────────────
+
+function drawLorenz() {
+    const cx = physCanvas.width  / 2;
+    const cy = physCanvas.height / 2;
+    const scale = 8;
+
+    if (lorenz.trail.length < 2) return;
+
+    physCtx.save();
+    for (let i = 1; i < lorenz.trail.length; i++) {
+        const [x0, y0, z0] = lorenz.trail[i - 1];
+        const [x1, y1, z1] = lorenz.trail[i];
+        const fade = i / lorenz.trail.length;
+        const hue  = (z0 / 50 * 240 + 200) % 360;
+        physCtx.strokeStyle = `hsla(${hue},100%,65%,${fade * 0.7})`;
+        physCtx.lineWidth   = 1;
+        physCtx.beginPath();
+        physCtx.moveTo(cx + x0 * scale, cy + (y0 - 25) * scale * 0.5);
+        physCtx.lineTo(cx + x1 * scale, cy + (y1 - 25) * scale * 0.5);
+        physCtx.stroke();
+    }
+    physCtx.restore();
+
+    // Draw current point
+    const [cx1, cy1] = lorenz.trail[lorenz.trail.length - 1];
+    drawGlow(physCtx, cx + cx1 * scale, cy + (cy1 - 25) * scale * 0.5, 5, '0,242,254', 0.9);
+}
+
+// ─── Analytics Charts ─────────────────────────────────────────────────────────
+
+function drawLossChart() {
+    const w = lossCanvas.width, h = lossCanvas.height;
+    lossCtx.clearRect(0, 0, w, h);
+
+    if (lossHistory.length < 2) {
+        // Draw a placeholder hint directly on the canvas
+        lossCtx.fillStyle = 'rgba(156,163,175,0.35)';
+        lossCtx.font = '12px Inter, sans-serif';
+        lossCtx.textAlign = 'center';
+        lossCtx.fillText('Start AI Training to see loss curve', w / 2, h / 2);
+        lossCtx.textAlign = 'left';
+        return;
+    }
+
+    const maxL = Math.max(...lossHistory, 0.001);
+    lossCtx.strokeStyle = '#00f2fe';
+    lossCtx.lineWidth   = 1.5;
+    lossCtx.shadowColor = '#00f2fe';
+    lossCtx.shadowBlur  = 4;
+    lossCtx.beginPath();
+    lossHistory.forEach((v, i) => {
+        const x = (i / (lossHistory.length - 1)) * w;
+        const y = h - (v / maxL) * h * 0.9 - h * 0.05;
+        i === 0 ? lossCtx.moveTo(x, y) : lossCtx.lineTo(x, y);
+    });
+    lossCtx.stroke();
+
+    // Fill under
+    lossCtx.shadowBlur = 0;
+    lossCtx.strokeStyle = 'transparent';
+    lossCtx.fillStyle = 'rgba(0,242,254,0.07)';
+    lossCtx.lineTo(w, h);
+    lossCtx.lineTo(0, h);
+    lossCtx.fill();
+}
+
+const phaseHistory = [];
+const MAX_PHASE = 800;
+
+function drawPhaseChart() {
+    const w = phaseCanvas.width, h = phaseCanvas.height;
+    phaseCtx.clearRect(0, 0, w, h);
+    if (phaseHistory.length < 2) return;
+
+    const cx = w / 2, cy = h / 2;
+    const scale = Math.min(w, h) * 0.35;
+
+    phaseCtx.save();
+    for (let i = 1; i < phaseHistory.length; i++) {
+        const [t1, w1] = phaseHistory[i - 1];
+        const [t2, w2] = phaseHistory[i];
+        const fade = i / phaseHistory.length;
+        phaseCtx.strokeStyle = `rgba(157,78,221,${fade * 0.8})`;
+        phaseCtx.lineWidth   = 1;
+        phaseCtx.beginPath();
+        phaseCtx.moveTo(cx + Math.sin(t1) * scale, cy - w1 / 15 * scale * 0.5);
+        phaseCtx.lineTo(cx + Math.sin(t2) * scale, cy - w2 / 15 * scale * 0.5);
+        phaseCtx.stroke();
+    }
+    phaseCtx.restore();
+}
+
+// ─── Collision / divergence metric ────────────────────────────────────────────
+
+function calcDivergence() {
+    if (!pendulumB || !showButterfly) return 0;
+    const b1 = pendulum.bob2Pos();
+    const b2 = pendulumB.bob2Pos();
+    const dx  = b1.x - b2.x, dy = b1.y - b2.y;
+    return Math.sqrt(dx * dx + dy * dy);
+}
+
+// ─── Main render loop ─────────────────────────────────────────────────────────
+
+let lastTime = 0;
+let frameCount = 0;
+let globalTime = 0;
+
+function loop(timestamp) {
+    requestAnimationFrame(loop);
+
+    const dt = Math.min((timestamp - lastTime) / 1000, 0.05);
+    lastTime = timestamp;
+    globalTime = timestamp;
+    frameCount++;
+
+    const params = getParams();
+
+    // ── Physics step ──────────────────────────────────────────────────────────
+    if (isPlaying && activeSystem === 'double-pendulum') {
+        for (let s = 0; s < SUBSTEPS; s++) {
+            // Sync params live
+            pendulum.L1 = params.L1; pendulum.L2 = params.L2;
+            pendulum.m1 = params.m1; pendulum.m2 = params.m2;
+            pendulum.g  = params.g;  pendulum.damping = params.damping;
+            pendulum.step(PHYSICS_DT);
+
+            if (showButterfly) {
+                pendulumB.L1 = params.L1; pendulumB.L2 = params.L2;
+                pendulumB.m1 = params.m1; pendulumB.m2 = params.m2;
+                pendulumB.g  = params.g;  pendulumB.damping = params.damping;
+                pendulumB.step(PHYSICS_DT);
+            }
+        }
+
+        // Phase space recording
+        const [t1, , w1] = pendulum.state;
+        phaseHistory.push([t1, w1]);
+        if (phaseHistory.length > MAX_PHASE) phaseHistory.shift();
+
+        // Collect training samples
+        if (isTraining && trainingData.length < MAX_SAMPLES) {
+            const att = attractors[0] || null;
+            const halfW = physCanvas.width / 2, halfH = physCanvas.height / 2;
+            const input = buildNNInput(pendulum.state, att, halfW, halfH);
+            // Step one more time for target
+            const snapState = [...pendulum.state];
+            const targetState = snapState; // we'll compare n+1 from next frame — use current for now
+            // Actually collect [state_t → state_t+1]: store current state, tag with "needs target"
+            if (trainingData.length > 0 && !trainingData[trainingData.length - 1].target) {
+                trainingData[trainingData.length - 1].target = buildNNInput(pendulum.state, att, halfW, halfH).slice(0, 4);
+            }
+            trainingData.push({ input, target: null });
+        }
+
+        // NN training
+        if (isTraining && nn && trainingData.length > BATCH_SIZE + 1) {
+            const validSamples = trainingData.filter(s => s.target);
+            if (validSamples.length >= BATCH_SIZE) {
+                const batch = [];
+                for (let e = 0; e < params.epochs; e++) {
+                    // Random mini-batch
+                    for (let b = 0; b < BATCH_SIZE; b++) {
+                        const idx = Math.floor(Math.random() * validSamples.length);
+                        batch.push(validSamples[idx]);
+                    }
+                }
+                lastLoss = nn.trainBatch(batch, params.lr);
+                lossHistory.push(lastLoss);
+                if (lossHistory.length > 200) lossHistory.shift();
+            }
+        }
+
+    } else if (isPlaying && activeSystem === 'lorenz') {
+        for (let s = 0; s < SUBSTEPS * 4; s++) {
+            lorenz.sigma = params.sigma;
+            lorenz.rho   = params.rho;
+            lorenz.beta  = params.beta;
+            lorenz.step(0.005);
+        }
+    }
+
+    // ── Render ────────────────────────────────────────────────────────────────
+    physCtx.clearRect(0, 0, physCanvas.width, physCanvas.height);
+
+    if (activeSystem === 'double-pendulum') {
+        if (showButterfly) drawPendulum(pendulumB, '#ff3366', 0.6);
+        if (showAIPath)    drawAITrajectory();
+        drawAttractors(timestamp);
+        drawPendulum(pendulum, '#00f2fe', 1);
+
+        // Instruction hint when no attractor placed
+        if (attractors.length === 0) {
+            physCtx.fillStyle = 'rgba(157,78,221,0.45)';
+            physCtx.font = '12px Inter, sans-serif';
+            physCtx.textAlign = 'center';
+            physCtx.fillText('Click canvas to place a gravitational attractor planet', pivotX, physCanvas.height - 20);
+            physCtx.textAlign = 'left';
+        }
+    } else {
+        drawLorenz();
+    }
+
+    // ── HUD stats ─────────────────────────────────────────────────────────────
+    const div = calcDivergence();
+    const divEl = document.getElementById('stat-divergence');
+    if (showButterfly) {
+        divEl.textContent = `${div.toFixed(1)} px`;
+    } else {
+        divEl.textContent = '—';
+    }
+
+    const aiErrEl = document.getElementById('stat-ai-error');
+    if (isTraining && lastLoss > 0) {
+        aiErrEl.textContent = lastLoss.toFixed(5);
+        document.getElementById('nn-loss-val').textContent = lastLoss.toFixed(5);
+    } else if (!isTraining && trainingData.filter(s => s.target).length > 50) {
+        aiErrEl.textContent = 'Paused';
+    } else {
+        aiErrEl.textContent = 'N/A';
+    }
+
+    const validCount = trainingData.filter(s => s.target).length;
+    document.getElementById('nn-samples-val').textContent = validCount;
+    document.getElementById('nn-progress').style.width =
+        Math.min(100, (validCount / MAX_SAMPLES) * 100) + '%';
+
+    // Phase coord display
+    if (activeSystem === 'double-pendulum') {
+        const [t1, t2, w1] = pendulum.state;
+        document.getElementById('phase-coord-val').textContent =
+            `θ₁: ${(t1 * 180 / Math.PI).toFixed(1)}°  ω₁: ${w1.toFixed(2)} rad/s`;
+    }
+
+    if (isTraining) {
+        document.getElementById('trend-loss-value').textContent =
+            `Loss: ${lastLoss > 0 ? lastLoss.toExponential(3) : '--'}`;
+    }
+
+    // ── Sub-charts ────────────────────────────────────────────────────────────
+    drawLossChart();
+    drawPhaseChart();
+}
+
+// ─── Attractor interaction ────────────────────────────────────────────────────
+
+function canvasEventCoords(e) {
+    const rect = physCanvas.getBoundingClientRect();
+    const scaleX = physCanvas.width  / rect.width;
+    const scaleY = physCanvas.height / rect.height;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return {
+        x: (clientX - rect.left) * scaleX - pivotX,
+        y: (clientY - rect.top)  * scaleY - pivotY
+    };
+}
+
+function hitTestAttractor(coords) {
+    const hitRadius = 20;
+    for (let i = attractors.length - 1; i >= 0; i--) {
+        const att = attractors[i];
+        const dx = coords.x - att.x, dy = coords.y - att.y;
+        if (Math.sqrt(dx*dx + dy*dy) < hitRadius) return i;
+    }
+    return -1;
+}
+
+function onCanvasPointerDown(e) {
+    if (activeSystem !== 'double-pendulum') return;
+    e.preventDefault();
+
+    const coords = canvasEventCoords(e);
+    const hitIdx = hitTestAttractor(coords);
+
+    if (hitIdx >= 0) {
+        // Start dragging existing
+        draggingAttractor = hitIdx;
+    } else {
+        // Place new attractor
+        attractors.push({
+            x: coords.x,
+            y: coords.y,
+            mass: pendingAttractorMass,
+            _phase: Math.random() * Math.PI * 2
+        });
+        draggingAttractor = attractors.length - 1;
+        syncAttractors();
+
+        // Clear NN data when environment changes
+        trainingData = [];
+    }
+}
+
+function onCanvasPointerMove(e) {
+    if (draggingAttractor === null) return;
+    e.preventDefault();
+    const coords = canvasEventCoords(e);
+    attractors[draggingAttractor].x = coords.x;
+    attractors[draggingAttractor].y = coords.y;
+    syncAttractors();
+    // Reset training data on move (environment changed)
+    trainingData = [];
+}
+
+function onCanvasPointerUp(e) {
+    draggingAttractor = null;
+}
+
+// Right-click removes nearest attractor
+function onCanvasContextMenu(e) {
+    e.preventDefault();
+    const coords = canvasEventCoords(e);
+    const hitIdx = hitTestAttractor(coords);
+    if (hitIdx >= 0) {
+        attractors.splice(hitIdx, 1);
+        syncAttractors();
+        trainingData = [];
+    }
+}
+
+// ─── UI wiring ────────────────────────────────────────────────────────────────
+
+function wireSlider(id, labelId, suffix = '', decimals = 1) {
+    const slider = document.getElementById(id);
+    const label  = document.getElementById(labelId);
+    if (!slider || !label) return;
+    const update = () => {
+        label.textContent = parseFloat(slider.value).toFixed(decimals) + (suffix ? ' ' + suffix : '');
+    };
+    slider.addEventListener('input', update);
+    update();
+}
+
+function init() {
+    // Canvas refs
+    physCanvas  = document.getElementById('physics-canvas');
+    physCtx     = physCanvas.getContext('2d');
+    lossCanvas  = document.getElementById('loss-chart');
+    lossCtx     = lossCanvas.getContext('2d');
+    phaseCanvas = document.getElementById('phase-chart');
+    phaseCtx    = phaseCanvas.getContext('2d');
+
+    resizeCanvases();
+    window.addEventListener('resize', resizeCanvases);
+
+    // Slider labels
+    wireSlider('val-l1', 'label-l1', 'px', 0);
+    wireSlider('val-l2', 'label-l2', 'px', 0);
+    wireSlider('val-m1', 'label-m1', 'kg', 0);
+    wireSlider('val-m2', 'label-m2', 'kg', 0);
+    wireSlider('val-g',  'label-g',  'm/s²', 1);
+    wireSlider('val-damping', 'label-damping', '', 4);
+    wireSlider('val-sigma',   'label-sigma',   '', 1);
+    wireSlider('val-rho',     'label-rho',     '', 1);
+    wireSlider('val-beta',    'label-beta',    '', 2);
+    wireSlider('val-lr',      'label-lr',      '', 4);
+    wireSlider('val-epochs',  'label-epochs',  '', 0);
+
+    // Attractor mass slider
+    const attSlider = document.getElementById('val-attractor-mass');
+    const attLabel  = document.getElementById('label-attractor-mass');
+    if (attSlider) {
+        attSlider.addEventListener('input', () => {
+            pendingAttractorMass = parseFloat(attSlider.value);
+            attLabel.textContent = pendingAttractorMass;
+            // Update all existing attractors too
+            attractors.forEach(a => a.mass = pendingAttractorMass);
+        });
+    }
+
+    // Initial physics
+    const params = getParams();
+    pendulum  = makePendulum(params, 0);
+    pendulumB = makePendulum(params, 0.0001);
+    lorenz    = new LorenzSystem(params.sigma, params.rho, params.beta);
+    nn        = makeNN(params.hidden);
+
+    // System toggles
+    document.getElementById('sys-double-pendulum').addEventListener('click', () => {
+        activeSystem = 'double-pendulum';
+        document.getElementById('sys-double-pendulum').classList.add('active');
+        document.getElementById('sys-lorenz').classList.remove('active');
+        document.getElementById('params-double-pendulum').classList.add('active');
+        document.getElementById('params-lorenz').classList.remove('active');
+    });
+
+    document.getElementById('sys-lorenz').addEventListener('click', () => {
+        activeSystem = 'lorenz';
+        document.getElementById('sys-lorenz').classList.add('active');
+        document.getElementById('sys-double-pendulum').classList.remove('active');
+        document.getElementById('params-lorenz').classList.add('active');
+        document.getElementById('params-double-pendulum').classList.remove('active');
+    });
+
+    // Architecture change → rebuild NN
+    document.getElementById('select-hidden').addEventListener('change', () => {
+        const params = getParams();
+        nn = makeNN(params.hidden);
+        trainingData = [];
+        lossHistory  = [];
+        lastLoss     = 0;
+        isTraining   = false;
+        document.getElementById('btn-train-toggle').innerHTML =
+            '<i class="fa-solid fa-graduation-cap"></i> Start AI Training';
+        document.getElementById('btn-train-toggle').classList.remove('btn-danger');
+        document.getElementById('btn-train-toggle').classList.add('btn-primary');
+    });
+
+    // Viewport controls
+    document.getElementById('btn-play-physics').addEventListener('click', () => {
+        isPlaying = !isPlaying;
+        document.getElementById('btn-play-physics').innerHTML =
+            isPlaying ? '<i class="fa-solid fa-pause"></i>' : '<i class="fa-solid fa-play"></i>';
+    });
+
+    document.getElementById('btn-reset-physics').addEventListener('click', () => {
+        const params = getParams();
+        pendulum.reset();
+        pendulumB.reset(Math.PI / 2, Math.PI / 2 + 0.0001);
+        lorenz.reset();
+        phaseHistory.length = 0;
+    });
+
+    document.getElementById('btn-toggle-butterfly').addEventListener('click', () => {
+        showButterfly = !showButterfly;
+        const btn = document.getElementById('btn-toggle-butterfly');
+        btn.classList.toggle('active', showButterfly);
+    });
+
+    document.getElementById('btn-toggle-ai-path').addEventListener('click', () => {
+        if (!nn) return;
+        showAIPath = !showAIPath;
+        const btn = document.getElementById('btn-toggle-ai-path');
+        btn.classList.toggle('active', showAIPath);
+        btn.classList.toggle('disabled', !showAIPath && trainingData.filter(s=>s.target).length < 50);
+    });
+
+    // AI training toggle
+    document.getElementById('btn-train-toggle').addEventListener('click', () => {
+        isTraining = !isTraining;
+        const btn = document.getElementById('btn-train-toggle');
+        if (isTraining) {
+            btn.innerHTML = '<i class="fa-solid fa-stop"></i> Stop Training';
+            btn.classList.remove('btn-primary');
+            btn.classList.add('btn-danger');
+            document.getElementById('btn-toggle-ai-path').classList.remove('disabled');
+        } else {
+            btn.innerHTML = '<i class="fa-solid fa-graduation-cap"></i> Start AI Training';
+            btn.classList.remove('btn-danger');
+            btn.classList.add('btn-primary');
+        }
+    });
+
+    // Clear data
+    document.getElementById('btn-clear-data').addEventListener('click', () => {
+        trainingData = [];
+        lossHistory  = [];
+        lastLoss     = 0;
+        nn = makeNN(getParams().hidden);
+        document.getElementById('nn-loss-val').textContent = '0.00000';
+        document.getElementById('nn-samples-val').textContent = '0';
+        document.getElementById('nn-progress').style.width = '0%';
+    });
+
+    // Modal
+    document.getElementById('btn-theory').addEventListener('click', () => {
+        document.getElementById('theory-modal').classList.add('active');
+    });
+    document.getElementById('btn-close-modal').addEventListener('click', () => {
+        document.getElementById('theory-modal').classList.remove('active');
+    });
+    document.getElementById('theory-modal').addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) e.currentTarget.classList.remove('active');
+    });
+
+    // Tabs in modal
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById(btn.dataset.tab)?.classList.add('active');
+        });
+    });
+
+    // Canvas attractor interactions
+    physCanvas.addEventListener('mousedown',  onCanvasPointerDown);
+    physCanvas.addEventListener('mousemove',  onCanvasPointerMove);
+    physCanvas.addEventListener('mouseup',    onCanvasPointerUp);
+    physCanvas.addEventListener('mouseleave', onCanvasPointerUp);
+    physCanvas.addEventListener('contextmenu', onCanvasContextMenu);
+
+    // Touch support
+    physCanvas.addEventListener('touchstart', onCanvasPointerDown, { passive: false });
+    physCanvas.addEventListener('touchmove',  onCanvasPointerMove, { passive: false });
+    physCanvas.addEventListener('touchend',   onCanvasPointerUp);
+
+    // Start loop
+    requestAnimationFrame(loop);
+}
+
+document.addEventListener('DOMContentLoaded', init);
+
+</script>
+</body>
+</html>
